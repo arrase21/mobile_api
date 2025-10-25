@@ -1,0 +1,166 @@
+package repository
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"cloud.google.com/go/firestore"
+	"google.golang.org/api/iterator"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	"github.com/arrase21/mobileapi/internal/domain"
+)
+
+type FireUserRepo struct {
+	client *firestore.Client
+}
+
+func NewFireUserRepo(client *firestore.Client) *FireUserRepo {
+	return &FireUserRepo{client: client}
+}
+
+func (r *FireUserRepo) CreateUser(ctx context.Context, tenantID string, user *domain.User) error {
+	if tenantID == "" || user == nil {
+		return fmt.Errorf("tenantID and user cannot be empty")
+	}
+	ref := r.client.Collection("tenants").Doc(tenantID).Collection("users").NewDoc()
+	user.ID = ref.ID
+	user.CreatedAt = time.Now()
+	user.UpdatedAt = time.Now()
+	_, err := ref.Set(ctx, user)
+	return err
+}
+
+func (r *FireUserRepo) GetByDni(ctx context.Context, tenantID string, dni string) (*domain.User, error) {
+	iter := r.client.Collection("tenants").Doc(tenantID).Collection("users").
+		Where("dni", "==", dni).
+		Where("deleted_at", "==", nil).
+		Limit(1).Documents(ctx)
+	defer iter.Stop()
+
+	doc, err := iter.Next()
+	if err == iterator.Done {
+		return nil, domain.ErrUserNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	var user domain.User
+	if err := doc.DataTo(&user); err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *FireUserRepo) GetByEmail(ctx context.Context, tenantID, email string) (*domain.User, error) {
+	iter := r.client.Collection("tenants").Doc(tenantID).Collection("users").
+		Where("email", "==", email).Limit(1).Documents(ctx)
+	defer iter.Stop()
+
+	doc, err := iter.Next()
+	if err == iterator.Done {
+		return nil, domain.ErrUserNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	var user domain.User
+	if err := doc.DataTo(&user); err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *FireUserRepo) List(ctx context.Context, tenantID string, offset, limit int) ([]*domain.User, error) {
+	iter := r.client.Collection("tenants").Doc(tenantID).Collection("users").
+		OrderBy("created_at", firestore.Asc).Offset(offset).Limit(limit).Documents(ctx)
+	defer iter.Stop()
+
+	var users []*domain.User
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		u := new(domain.User)
+		if err := doc.DataTo(u); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}
+
+func (r *FireUserRepo) Update(ctx context.Context, tenantID string, user *domain.User) error {
+	if tenantID == "" || user == nil || user.ID == "" {
+		return fmt.Errorf("tenantID, user, and user.ID cannot be empty")
+	}
+	ref := r.client.Collection("tenants").Doc(tenantID).Collection("users").Doc(user.ID)
+	user.UpdatedAt = time.Now()
+	_, err := ref.Update(ctx, []firestore.Update{
+		{Path: "email", Value: user.Email},
+		{Path: "first_name", Value: user.FirstName},
+		{Path: "last_name", Value: user.LastName},
+		{Path: "dni", Value: user.Dni},
+	})
+	return err
+}
+
+func (r *FireUserRepo) SoftDelete(ctx context.Context, tenantID, userID string) error {
+	docRef := r.client.Collection("tenants").Doc(tenantID).Collection("users").Doc(userID)
+	_, err := docRef.Update(ctx, []firestore.Update{
+		{Path: "deleted_at", Value: time.Now()},
+		{Path: "updated_at", Value: time.Now()},
+	})
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return domain.ErrUserNotFound
+		}
+		return fmt.Errorf("failed to soft delete user: %w", err)
+	}
+	return nil
+}
+
+func (r *FireUserRepo) Delete(ctx context.Context, tenantID, userID string) error {
+	if tenantID == "" || userID == "" {
+		return fmt.Errorf("tenantID and userID cannot be empty")
+	}
+	_, err := r.client.Collection("tenants").Doc(tenantID).Collection("users").Doc(userID).Delete(ctx)
+	return err
+}
+
+func (r *FireUserRepo) Restore(ctx context.Context, tenantID, userID string) error {
+	ref := r.client.Collection("tenants").Doc(tenantID).Collection("users").Doc(userID)
+	_, err := ref.Update(ctx, []firestore.Update{
+		{Path: "deleted_at", Value: nil},
+		{Path: "updated_at", Value: nil},
+	})
+	return err
+}
+
+func (r *FireUserRepo) ListDeleted(ctx context.Context, tenantID string) ([]*domain.User, error) {
+	ref := r.client.Collection("tenants").Doc(tenantID).Collection("users").
+		Where("deleted_at", "!=", nil).OrderBy("deleted_at", firestore.Desc).
+		Documents(ctx)
+	var users []*domain.User
+	for {
+		doc, err := ref.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		u := new(domain.User)
+		if err := doc.DataTo(u); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}

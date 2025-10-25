@@ -1,0 +1,71 @@
+package domain
+
+import "time"
+
+type Tenant struct {
+	ID         string    `firestore:"id" json:"id"`
+	Name       string    `firestore:"name" json:"name"`
+	Plan       string    `firestore:"plan" json:"plan"`
+	Expiration time.Time `firestore:"expiration" json:"expiration"`
+	CreatedAt  time.Time `firestore:"created_at" json:"created_at"`
+	UpdatedAt  time.Time `firestore:"updated_at" json:"updated_at"`
+}
+
+type Permission struct {
+	ID        string    `firestore:"id" json:"id"`
+	TenantID  string    `firestore:"tenant_id" json:"tenant_id"`
+	Name      string    `firestore:"name" json:"name"` // ej: "user.manage"
+	CreatedAt time.Time `firestore:"created_at" json:"created_at"`
+	UpdatedAt time.Time `firestore:"updated_at" json:"updated_at"`
+	DeletedAt time.Time `firestore:"deleted_at" json:"deleted_at"`
+}
+
+type PermissionAction struct {
+	ID           string    `firestore:"id" json:"id"`
+	TenantID     string    `firestore:"tenant_id" json:"tenant_id"`
+	PermissionID string    `firestore:"permission_id" json:"permission_id"`
+	Action       string    `firestore:"action" json:"action"` // ej: "create", "read", "update"
+	CreatedAt    time.Time `firestore:"created_at" json:"created_at"`
+	UpdatedAt    time.Time `firestore:"updated_at" json:"updated_at"`
+	DeletedAt    time.Time `firestore:"deleted_at" json:"deleted_at"`
+}
+
+type Role struct {
+	ID          string    `firestore:"id" json:"id"`
+	TenantID    string    `firestore:"tenant_id" json:"tenant_id"`
+	Name        string    `firestore:"name" json:"name"`
+	Permissions []string  `firestore:"permissions" json:"permissions"` // array de IDs de permisos
+	CreatedAt   time.Time `firestore:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `firestore:"updated_at" json:"updated_at"`
+	DeletedAt   time.Time `firestore:"deleted_at" json:"deleted_at"`
+}
+
+type User struct {
+	ID        string    `firestore:"id" json:"id"`
+	FirstName string    `firestore:"first_name" json:"first_name"`
+	LastName  string    `firestore:"last_name" json:"last_name"`
+	Dni       string    `firestore:"dni" json:"dni"`
+	Gender    string    `firestore:"gender" json:"gender"`
+	Phone     string    `firestore:"phone" json:"phone"`
+	Email     string    `firestore:"email" json:"email"`
+	DateBirth time.Time `firestore:"date_birth" json:"date_birth"`
+	Nickname  string    `firestore:"nickname" json:"nickname"`
+	DeletedAt time.Time `firestore:"deleted_at" json:"deleted_at"`
+	CreatedAt time.Time `firestore:"created_at" json:"created_at"`
+	UpdatedAt time.Time `firestore:"updated_at" json:"updated_at"`
+	TenantID  string    `firestore:"tenant_id" json:"tenant_id"`
+	Role      Role      `firestore:"role" json:"role"`
+}
+
+type Assessment struct {
+	ID        string    `firestore:"id" json:"id"`
+	UserID    string    `firestore:"user_id" json:"user_id"`
+	Date      time.Time `firestore:"date" json:"date"`
+	Height    float64   `firestore:"height" json:"height"`
+	Weight    float64   `firestore:"weight" json:"weight"`
+	Humerus   float64   `firestore:"humerus" json:"humerus"`
+	Femur     float64   `firestore:"femur" json:"femur"`
+	DeletedAt time.Time `firestore:"deleted_at" json:"deleted_at"`
+	CreatedAt time.Time `firestore:"created_at" json:"created_at"`
+	UpdatedAt time.Time `firestore:"updated_at" json:"updated_at"`
+}
