@@ -5,7 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(userSvc *service.UserService, firebaseAuth *FirebaseAuth) *gin.Engine {
+func NewRouter(userSvc *service.UserService) *gin.Engine {
 	r := gin.Default()
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
@@ -23,10 +23,13 @@ func NewRouter(userSvc *service.UserService, firebaseAuth *FirebaseAuth) *gin.En
 			"service": "user",
 		})
 	})
+
+	fbAuth := NewFirebaseAuth()
 	v1 := r.Group("/api/v1")
 	{
 		usrs := v1.Group("/users")
-		usrs.Use(firebaseAuth.Middleware())
+		usrs.Use(fbAuth.Middleware())
+		// usrs.Use(firebaseAuth.Middleware())
 		{
 			userHandler := NewUserHandler(userSvc)
 			usrs.POST("", userHandler.Create)

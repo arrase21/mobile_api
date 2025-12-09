@@ -27,8 +27,9 @@ func (r *FireUserRepo) CreateUser(ctx context.Context, tenantID string, user *do
 	}
 	ref := r.client.Collection("tenants").Doc(tenantID).Collection("users").NewDoc()
 	user.ID = ref.ID
-	user.CreatedAt = time.Now()
-	user.UpdatedAt = time.Now()
+	user.CreatedAt = time.Now().UTC()
+	user.UpdatedAt = time.Now().UTC()
+	user.IsDeleted = false
 	_, err := ref.Set(ctx, user)
 	return err
 }
@@ -36,7 +37,7 @@ func (r *FireUserRepo) CreateUser(ctx context.Context, tenantID string, user *do
 func (r *FireUserRepo) GetByDni(ctx context.Context, tenantID string, dni string) (*domain.User, error) {
 	iter := r.client.Collection("tenants").Doc(tenantID).Collection("users").
 		Where("dni", "==", dni).
-		Where("deleted_at", "==", nil).
+		Where("is_deleted", "==", false).
 		Limit(1).Documents(ctx)
 	defer iter.Stop()
 
@@ -56,7 +57,7 @@ func (r *FireUserRepo) GetByDni(ctx context.Context, tenantID string, dni string
 
 func (r *FireUserRepo) GetByEmail(ctx context.Context, tenantID, email string) (*domain.User, error) {
 	iter := r.client.Collection("tenants").Doc(tenantID).Collection("users").
-		Where("email", "==", email).Limit(1).Documents(ctx)
+		Where("email", "==", email).Where("is_deleted", "==", false).Limit(1).Documents(ctx)
 	defer iter.Stop()
 
 	doc, err := iter.Next()
@@ -74,7 +75,7 @@ func (r *FireUserRepo) GetByEmail(ctx context.Context, tenantID, email string) (
 }
 
 func (r *FireUserRepo) List(ctx context.Context, tenantID string, offset, limit int) ([]*domain.User, error) {
-	iter := r.client.Collection("tenants").Doc(tenantID).Collection("users").
+	iter := r.client.Collection("tenants").Doc(tenantID).Collection("users").Where("is_deleted", "==", false).
 		OrderBy("created_at", firestore.Asc).Offset(offset).Limit(limit).Documents(ctx)
 	defer iter.Stop()
 
@@ -101,19 +102,27 @@ func (r *FireUserRepo) Update(ctx context.Context, tenantID string, user *domain
 		return fmt.Errorf("tenantID, user, and user.ID cannot be empty")
 	}
 	ref := r.client.Collection("tenants").Doc(tenantID).Collection("users").Doc(user.ID)
-	user.UpdatedAt = time.Now()
+	user.UpdatedAt = time.Now().UTC()
 	_, err := ref.Update(ctx, []firestore.Update{
 		{Path: "email", Value: user.Email},
 		{Path: "first_name", Value: user.FirstName},
 		{Path: "last_name", Value: user.LastName},
 		{Path: "dni", Value: user.Dni},
+		{Path: "updated_at", Value: user.UpdatedAt},
 	})
-	return err
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return domain.ErrUserNotFound
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *FireUserRepo) SoftDelete(ctx context.Context, tenantID, userID string) error {
 	docRef := r.client.Collection("tenants").Doc(tenantID).Collection("users").Doc(userID)
 	_, err := docRef.Update(ctx, []firestore.Update{
+		{Path: "is_deleted", Value: true},
 		{Path: "deleted_at", Value: time.Now()},
 		{Path: "updated_at", Value: time.Now()},
 	})
@@ -137,16 +146,26 @@ func (r *FireUserRepo) Delete(ctx context.Context, tenantID, userID string) erro
 func (r *FireUserRepo) Restore(ctx context.Context, tenantID, userID string) error {
 	ref := r.client.Collection("tenants").Doc(tenantID).Collection("users").Doc(userID)
 	_, err := ref.Update(ctx, []firestore.Update{
-		{Path: "deleted_at", Value: nil},
-		{Path: "updated_at", Value: nil},
+		{Path: "is_deleted", Value: false},
+		{Path: "deleted_at", Value: firestore.Delete},
+		{Path: "updated_at", Value: time.Now()},
 	})
-	return err
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return domain.ErrUserNotFound
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *FireUserRepo) ListDeleted(ctx context.Context, tenantID string) ([]*domain.User, error) {
 	ref := r.client.Collection("tenants").Doc(tenantID).Collection("users").
-		Where("deleted_at", "!=", nil).OrderBy("deleted_at", firestore.Desc).
+		Where("is_deleted", "==", true).OrderBy("deleted_at", firestore.Desc).
 		Documents(ctx)
+
+	defer ref.Stop()
+
 	var users []*domain.User
 	for {
 		doc, err := ref.Next()

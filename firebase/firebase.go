@@ -1,4 +1,4 @@
-package http
+package firebase
 
 import (
 	"context"
@@ -13,33 +13,27 @@ import (
 	"google.golang.org/api/option"
 )
 
-// FirebaseAuth gestiona la autenticación con Firebase.
 type FirebaseAuth struct {
 	authClient *auth.Client
 }
 
-// NewFirebaseAuth crea una instancia del middleware con el cliente de Firebase Auth.
 func NewFirebaseAuth() *FirebaseAuth {
-	credPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
-	if credPath == "" {
-		credPath = "service.json" // archivo por defecto
+	credPaht := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+	if credPaht == "" {
+		credPaht = "serviceAccountKey.json"
 	}
-
-	opt := option.WithCredentialsFile(credPath)
+	opt := option.WithCredentialsFile(credPaht)
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
 		log.Fatalf("error initializing firebase app: %v", err)
 	}
-
 	authClient, err := app.Auth(context.Background())
 	if err != nil {
 		log.Fatalf("error getting firebase auth client: %v", err)
 	}
-
 	return &FirebaseAuth{authClient: authClient}
 }
 
-// Middleware valida el token de Firebase en cada petición protegida.
 func (m *FirebaseAuth) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -48,7 +42,6 @@ func (m *FirebaseAuth) Middleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-
 		idToken := strings.TrimPrefix(authHeader, "Bearer ")
 		token, err := m.authClient.VerifyIDToken(c.Request.Context(), idToken)
 		if err != nil {
@@ -56,15 +49,10 @@ func (m *FirebaseAuth) Middleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-
-		// Guardar información relevante en el contexto
 		c.Set("firebase_uid", token.UID)
-		c.Set("claims", token.Claims)
-
 		if tenant, ok := token.Claims["tenant_id"]; ok {
 			c.Set("tenant_id", tenant)
 		}
-
 		c.Next()
 	}
 }

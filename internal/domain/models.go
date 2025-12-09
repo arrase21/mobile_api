@@ -6,38 +6,48 @@ type Tenant struct {
 	ID         string    `firestore:"id" json:"id"`
 	Name       string    `firestore:"name" json:"name"`
 	Plan       string    `firestore:"plan" json:"plan"`
+	Domain     string    `firestore:"domain" json:"domain"`
+	IsActive   bool      `firestore:"is_active" json:"is_active"`
 	Expiration time.Time `firestore:"expiration" json:"expiration"`
 	CreatedAt  time.Time `firestore:"created_at" json:"created_at"`
 	UpdatedAt  time.Time `firestore:"updated_at" json:"updated_at"`
 }
 
 type Permission struct {
-	ID        string    `firestore:"id" json:"id"`
-	TenantID  string    `firestore:"tenant_id" json:"tenant_id"`
-	Name      string    `firestore:"name" json:"name"` // ej: "user.manage"
-	CreatedAt time.Time `firestore:"created_at" json:"created_at"`
-	UpdatedAt time.Time `firestore:"updated_at" json:"updated_at"`
-	DeletedAt time.Time `firestore:"deleted_at" json:"deleted_at"`
+	ID          string    `firestore:"id" json:"id"`
+	Name        string    `firestore:"name" json:"name"` // ej: "user.manage"
+	Description string    `firestore:"description" json:"description"`
+	Actions     []string  `firestore:"actions" json:"actions"`
+	IsDeleted   bool      `firestore:"is_deleted" json:"is_deleted"`
+	DeletedAt   time.Time `firestore:"deleted_at" json:"deleted_at"`
+	CreatedAt   time.Time `firestore:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `firestore:"updated_at" json:"updated_at"`
+	TenantID    string    `firestore:"tenant_id" json:"tenant_id"`
 }
 
 type PermissionAction struct {
-	ID           string    `firestore:"id" json:"id"`
-	TenantID     string    `firestore:"tenant_id" json:"tenant_id"`
-	PermissionID string    `firestore:"permission_id" json:"permission_id"`
-	Action       string    `firestore:"action" json:"action"` // ej: "create", "read", "update"
-	CreatedAt    time.Time `firestore:"created_at" json:"created_at"`
-	UpdatedAt    time.Time `firestore:"updated_at" json:"updated_at"`
-	DeletedAt    time.Time `firestore:"deleted_at" json:"deleted_at"`
+	ID          string    `firestore:"id" json:"id"`
+	Name        string    `firestore:"name" json:"name"`
+	Description string    `firestore:"description" json:"description"`
+	IsDeleted   string    `firestore:"is_deleted" json:"is_deleted"`
+	DeletedAt   time.Time `firestore:"deleted_at" json:"deleted_at"`
+	CreatedAt   time.Time `firestore:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `firestore:"updated_at" json:"updated_at"`
+	TenantID    string    `firestore:"tenant_id" json:"tenant_id"`
+	// PermissionID string    `firestore:"permission_id" json:"permission_id"`
+	// Action       string    `firestore:"action" json:"action"` // ej: "create", "read", "update"
 }
 
 type Role struct {
 	ID          string    `firestore:"id" json:"id"`
-	TenantID    string    `firestore:"tenant_id" json:"tenant_id"`
 	Name        string    `firestore:"name" json:"name"`
-	Permissions []string  `firestore:"permissions" json:"permissions"` // array de IDs de permisos
+	Description string    `firestore:"description" json:"description"`
+	Permissions []string  `firestore:"permissions" json:"permissions"`
+	IsDeleted   bool      `firestore:"is_deleted" json:"is_deleted"`
+	DeletedAt   time.Time `firestore:"deleted_at" json:"deleted_at"`
 	CreatedAt   time.Time `firestore:"created_at" json:"created_at"`
 	UpdatedAt   time.Time `firestore:"updated_at" json:"updated_at"`
-	DeletedAt   time.Time `firestore:"deleted_at" json:"deleted_at"`
+	TenantID    string    `firestore:"tenant_id" json:"tenant_id"`
 }
 
 type User struct {
@@ -50,11 +60,12 @@ type User struct {
 	Email     string    `firestore:"email" json:"email"`
 	DateBirth time.Time `firestore:"date_birth" json:"date_birth"`
 	Nickname  string    `firestore:"nickname" json:"nickname"`
+	IsDeleted bool      `firestore:"is_deleted" json:"is_deleted"`
 	DeletedAt time.Time `firestore:"deleted_at" json:"deleted_at"`
 	CreatedAt time.Time `firestore:"created_at" json:"created_at"`
 	UpdatedAt time.Time `firestore:"updated_at" json:"updated_at"`
 	TenantID  string    `firestore:"tenant_id" json:"tenant_id"`
-	Role      Role      `firestore:"role" json:"role"`
+	RoleID    Role      `firestore:"role" json:"role"`
 }
 
 type Assessment struct {
