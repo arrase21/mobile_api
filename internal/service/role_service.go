@@ -49,7 +49,7 @@ func (s *RoleService) ListByTenant(ctx context.Context, tenantID string, offset,
 	return s.roleRepo.ListByTenant(ctx, tenantID, offset, limit)
 }
 
-func (s *RoleService) Update(ctx context.Context, tenatID string, role *domain.Role) error {
+func (s *RoleService) Update(ctx context.Context, tenantID string, role *domain.Role) error {
 	if role == nil {
 		return errors.New("role is nil")
 	}
@@ -59,7 +59,15 @@ func (s *RoleService) Update(ctx context.Context, tenatID string, role *domain.R
 	role.Name = strings.TrimSpace(role.Name)
 	role.Description = strings.TrimSpace(role.Description)
 
-	return s.roleRepo.Update(ctx, tenatID, role)
+	existing, err := s.roleRepo.GetByName(ctx, tenantID, role.Name)
+	if err != nil && !errors.Is(err, domain.ErrRoleNotFound) {
+		return err
+	}
+	if existing != nil && existing.ID != role.ID {
+		return domain.ErrRoleAlreadyExists
+	}
+
+	return s.roleRepo.Update(ctx, tenantID, role)
 }
 
 func (s *RoleService) SoftDelete(ctx context.Context, tenantID, id string) error {

@@ -47,6 +47,8 @@ func (h *UserHandler) Create(c *gin.Context) {
 		return
 	}
 
+	creatorID, _ := c.Get("user_id")
+
 	var req CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -65,8 +67,20 @@ func (h *UserHandler) Create(c *gin.Context) {
 		TenantID:  tenantID.(string),
 	}
 
-	if err := h.svc.CreateUser(c.Request.Context(), user); err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	var creatorIDStr string
+	if creatorID != nil {
+		creatorIDStr = creatorID.(string)
+	}
+
+	if err := h.svc.CreateUser(c.Request.Context(), user, creatorIDStr); err != nil {
+		switch err {
+		case domain.ErrUserAlreadyExists:
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		case domain.ErrTenantUserLimitReached:
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		}
 		return
 	}
 
@@ -194,6 +208,23 @@ func (h *UserHandler) Restore(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "user restored"})
+}
+
+func (h *UserHandler) ListDeleted(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		return
+	}
+	users, err := h.svc.ListDeleted(c.Request.Context(), tenantID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"users": users,
+		"total": len(users),
+	})
 }
 
 func (h *UserHandler) Delete(c *gin.Context) {

@@ -3,20 +3,21 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/arrase21/mobileapi/internal/domain"
 )
 
 type UserService struct {
-	userRepo domain.UserRepo
+	userRepo   domain.UserRepo
+	tenantRepo domain.TenantRepo
 }
 
-func NewUserService(a domain.UserRepo) *UserService {
-	return &UserService{userRepo: a}
+func NewUserService(userRepo domain.UserRepo, tenantRepo domain.TenantRepo) *UserService {
+	return &UserService{userRepo: userRepo, tenantRepo: tenantRepo}
 }
 
-// Validates
 func (s *UserService) checkUserExist(ctx context.Context, tenantID, email, dni string) error {
 	if email != "" {
 		if u, err := s.userRepo.GetByEmail(ctx, tenantID, email); err == nil && u != nil {
@@ -35,24 +36,41 @@ func (s *UserService) checkUserExist(ctx context.Context, tenantID, email, dni s
 	return nil
 }
 
-func (s *UserService) CreateUser(ctx context.Context, usr *domain.User) error {
+func (s *UserService) CreateUser(ctx context.Context, usr *domain.User, createdByID string) error {
 	if usr == nil {
 		return errors.New("user is nil")
 	}
-	// clean data
+
 	usr.Email = strings.ToLower(strings.TrimSpace(usr.Email))
 	usr.FirstName = strings.TrimSpace(usr.FirstName)
 	usr.LastName = strings.TrimSpace(usr.LastName)
 	usr.Dni = strings.TrimSpace(usr.Dni)
-	// Validate is not empty
+
 	if usr.FirstName == "" || usr.LastName == "" || usr.Dni == "" || usr.Email == "" {
 		return errors.New("first name, last name, dni, and email cannot be empty")
 	}
-	// validate if exist
+
 	if err := s.checkUserExist(ctx, usr.TenantID, usr.Email, usr.Dni); err != nil {
 		return err
 	}
-	// Create user
+
+	tenant, err := s.tenantRepo.GetByID(ctx, usr.TenantID)
+	if err != nil {
+		return fmt.Errorf("failed to get tenant: %w", err)
+	}
+
+	if tenant.MaxUsers > 0 {
+		count, err := s.userRepo.CountByTenant(ctx, usr.TenantID)
+		if err != nil {
+			return fmt.Errorf("failed to count users: %w", err)
+		}
+		if count >= tenant.MaxUsers {
+			return domain.ErrTenantUserLimitReached
+		}
+	}
+
+	usr.CreatedBy = createdByID
+
 	return s.userRepo.CreateUser(ctx, usr.TenantID, usr)
 }
 

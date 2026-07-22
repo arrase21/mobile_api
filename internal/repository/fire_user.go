@@ -55,6 +55,42 @@ func (r *FireUserRepo) GetByDni(ctx context.Context, tenantID string, dni string
 	return &user, nil
 }
 
+func (r *FireUserRepo) GetByID(ctx context.Context, tenantID, id string) (*domain.User, error) {
+	doc, err := r.client.Collection("tenants").Doc(tenantID).Collection("users").Doc(id).Get(ctx)
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return nil, domain.ErrUserNotFound
+		}
+		return nil, err
+	}
+	var user domain.User
+	if err := doc.DataTo(&user); err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *FireUserRepo) GetByFirebaseUID(ctx context.Context, tenantID, firebaseUID string) (*domain.User, error) {
+	iter := r.client.Collection("tenants").Doc(tenantID).Collection("users").
+		Where("firebase_uid", "==", firebaseUID).
+		Where("is_deleted", "==", false).
+		Limit(1).Documents(ctx)
+	defer iter.Stop()
+
+	doc, err := iter.Next()
+	if err == iterator.Done {
+		return nil, domain.ErrUserNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	var user domain.User
+	if err := doc.DataTo(&user); err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 func (r *FireUserRepo) GetByEmail(ctx context.Context, tenantID, email string) (*domain.User, error) {
 	iter := r.client.Collection("tenants").Doc(tenantID).Collection("users").
 		Where("email", "==", email).Where("is_deleted", "==", false).Limit(1).Documents(ctx)
@@ -182,4 +218,27 @@ func (r *FireUserRepo) ListDeleted(ctx context.Context, tenantID string) ([]*dom
 		users = append(users, u)
 	}
 	return users, nil
+}
+
+func (r *FireUserRepo) CountByTenant(ctx context.Context, tenantID string) (int, error) {
+	if tenantID == "" {
+		return 0, fmt.Errorf("tenantID cannot be empty")
+	}
+	iter := r.client.Collection("tenants").Doc(tenantID).Collection("users").
+		Where("is_deleted", "==", false).
+		Documents(ctx)
+	defer iter.Stop()
+
+	count := 0
+	for {
+		_, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return 0, err
+		}
+		count++
+	}
+	return count, nil
 }

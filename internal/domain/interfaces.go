@@ -6,16 +6,18 @@ import (
 )
 
 var (
-	ErrUserNotFound            = errors.New("user not found")
-	ErrUserAlreadyExists       = errors.New("user already exists")
-	ErrInvalidTenant           = errors.New("invalid tenant")
-	ErrPermissionNotFound      = errors.New("permission not found")
-	ErrPermissionAlreadyExists = errors.New("permission already exists")
-	ErrRoleNotFound            = errors.New("role not found")
-	ErrRoleAlreadyExists       = errors.New("role already exists")
-	ErrAssessmentNotFound      = errors.New("assessment not found")
-	ErrSkinfoldNotFound        = errors.New("skinfold not found")
-	ErrVolumetryNotFound       = errors.New("volumetry not found")
+	ErrUserNotFound             = errors.New("user not found")
+	ErrUserAlreadyExists        = errors.New("user already exists")
+	ErrInvalidTenant            = errors.New("invalid tenant")
+	ErrPermissionNotFound       = errors.New("permission not found")
+	ErrPermissionAlreadyExists  = errors.New("permission already exists")
+	ErrRoleNotFound             = errors.New("role not found")
+	ErrRoleAlreadyExists        = errors.New("role already exists")
+	ErrAssessmentNotFound       = errors.New("assessment not found")
+	ErrPermissionActionNotFound = errors.New("permission action not found")
+	ErrSkinfoldNotFound         = errors.New("skinfold not found")
+	ErrVolumetryNotFound        = errors.New("volumetry not found")
+	ErrTenantUserLimitReached   = errors.New("tenant user limit reached")
 )
 
 type TenantRepo interface {
@@ -59,10 +61,30 @@ type UserRepo interface {
 	CreateUser(ctx context.Context, tenantID string, user *User) error
 	GetByDni(ctx context.Context, tenantID, dni string) (*User, error)
 	GetByEmail(ctx context.Context, tenantID, email string) (*User, error)
+	GetByID(ctx context.Context, tenantID, id string) (*User, error)
+	GetByFirebaseUID(ctx context.Context, tenantID, firebaseUID string) (*User, error)
 	List(ctx context.Context, tenantID string, offset, limit int) ([]*User, error)
 	Update(ctx context.Context, tenantID string, user *User) error
 	SoftDelete(ctx context.Context, tenantID, userID string) error
 	Delete(ctx context.Context, tenantID, userID string) error
 	Restore(ctx context.Context, tenantID, userID string) error
 	ListDeleted(ctx context.Context, tenantID string) ([]*User, error)
+	CountByTenant(ctx context.Context, tenantID string) (int, error)
+}
+
+type AssessmentRepo interface {
+	Create(ctx context.Context, tenantID string, assessment *Assessment) error
+	GetByID(ctx context.Context, tenantID, id string) (*Assessment, error)
+	ListByUser(ctx context.Context, tenantID, userID string, offset, limit int) ([]*Assessment, error)
+	ListByTenant(ctx context.Context, tenantID string, offset, limit int) ([]*Assessment, error)
+	Update(ctx context.Context, tenantID string, assessment *Assessment) error
+	Delete(ctx context.Context, tenantID, assessmentID string) error
+}
+
+type SkinfoldRepo interface {
+	Create(ctx context.Context, tenantID string, skinfold *Skinfold) error
+	GetByID(ctx context.Context, tenantID, id string) (*Skinfold, error)
+	ListByAssessment(ctx context.Context, tenantID, assessmentID string, offset, limit int) ([]*Skinfold, error)
+	Update(ctx context.Context, tenantID string, skinfold *Skinfold) error
+	Delete(ctx context.Context, tenantID, skinfoldID string) error
 }

@@ -73,8 +73,8 @@ func (r *FireRoleRepo) GetByName(ctx context.Context, tenantID, name string) (*d
 	return &role, nil
 }
 
-func (r *FireRoleRepo) ListByTenant(ctx context.Context, tenanID string, offset, limit int) ([]*domain.Role, error) {
-	ref := r.client.Collection("tenants").Doc(tenanID).Collection("roles").Where("is_deleted", "==", false).
+func (r *FireRoleRepo) ListByTenant(ctx context.Context, tenantID string, offset, limit int) ([]*domain.Role, error) {
+	ref := r.client.Collection("tenants").Doc(tenantID).Collection("roles").Where("is_deleted", "==", false).
 		OrderBy("created_at", firestore.Asc).Offset(offset).Limit(limit).Documents(ctx)
 	defer ref.Stop()
 	var roles []*domain.Role
@@ -97,7 +97,7 @@ func (r *FireRoleRepo) ListByTenant(ctx context.Context, tenanID string, offset,
 
 func (r *FireRoleRepo) Update(ctx context.Context, tenantID string, role *domain.Role) error {
 	if tenantID == "" || role == nil || role.ID == "" {
-		return fmt.Errorf("TennatID, role and role.ID cannot be empty")
+		return fmt.Errorf("tenantID, role, and role.ID cannot be empty")
 	}
 	ref := r.client.Collection("tenants").Doc(tenantID).Collection("roles").Doc(role.ID)
 	role.UpdatedAt = time.Now().UTC()
