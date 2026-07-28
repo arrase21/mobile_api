@@ -29,13 +29,13 @@ type UpdatePermissionActionRequest struct {
 func (h *PermissionActionHandler) Create(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 
 	var req CreatePermissionActionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -46,7 +46,7 @@ func (h *PermissionActionHandler) Create(c *gin.Context) {
 	}
 
 	if err := h.svc.Create(c.Request.Context(), tenantID.(string), action); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{
@@ -58,17 +58,17 @@ func (h *PermissionActionHandler) Create(c *gin.Context) {
 func (h *PermissionActionHandler) GetByID(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing permission action id"})
+		respondError(c, http.StatusBadRequest, "missing permission action id")
 		return
 	}
 	action, err := h.svc.GetByID(c.Request.Context(), tenantID.(string), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondError(c, http.StatusNotFound, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"action": action})
@@ -77,12 +77,14 @@ func (h *PermissionActionHandler) GetByID(c *gin.Context) {
 func (h *PermissionActionHandler) List(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
-	actions, err := h.svc.ListByTenant(c.Request.Context(), tenantID.(string))
+	offset := parseQueryInt(c.Query("offset"), 0)
+	limit := parseQueryInt(c.Query("limit"), 20)
+	actions, err := h.svc.ListByTenant(c.Request.Context(), tenantID.(string), offset, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -94,17 +96,17 @@ func (h *PermissionActionHandler) List(c *gin.Context) {
 func (h *PermissionActionHandler) Update(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing permission action id"})
+		respondError(c, http.StatusBadRequest, "missing permission action id")
 		return
 	}
 	var req UpdatePermissionActionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 	action := &domain.PermissionAction{
@@ -114,7 +116,7 @@ func (h *PermissionActionHandler) Update(c *gin.Context) {
 		TenantID:    tenantID.(string),
 	}
 	if err := h.svc.Update(c.Request.Context(), tenantID.(string), action); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "permission action updated successfully"})
@@ -123,16 +125,16 @@ func (h *PermissionActionHandler) Update(c *gin.Context) {
 func (h *PermissionActionHandler) SoftDelete(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing permission action id"})
+		respondError(c, http.StatusBadRequest, "missing permission action id")
 		return
 	}
 	if err := h.svc.SoftDelete(c.Request.Context(), tenantID.(string), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "permission action softdeleted"})
@@ -141,16 +143,16 @@ func (h *PermissionActionHandler) SoftDelete(c *gin.Context) {
 func (h *PermissionActionHandler) Restore(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing permission action id"})
+		respondError(c, http.StatusBadRequest, "missing permission action id")
 		return
 	}
 	if err := h.svc.Restore(c.Request.Context(), tenantID.(string), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "permission action restored"})

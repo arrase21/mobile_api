@@ -114,6 +114,12 @@ func (s *UserService) Restore(ctx context.Context, tenantID, userID string) erro
 	return s.userRepo.Restore(ctx, tenantID, userID)
 }
 
-func (s *UserService) ListDeleted(ctx context.Context, tenantID string) ([]*domain.User, error) {
-	return s.userRepo.ListDeleted(ctx, tenantID)
+func (s *UserService) ListDeleted(ctx context.Context, tenantID string, offset, limit int) ([]*domain.User, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return s.userRepo.ListDeleted(ctx, tenantID, offset, limit)
 }

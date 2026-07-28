@@ -43,8 +43,14 @@ func (s *TenantService) GetByID(ctx context.Context, tenantID string) (*domain.T
 	return s.tenantRepo.GetByID(ctx, tenantID)
 }
 
-func (s *TenantService) List(ctx context.Context) ([]*domain.Tenant, error) {
-	return s.tenantRepo.List(ctx)
+func (s *TenantService) List(ctx context.Context, offset, limit int) ([]*domain.Tenant, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return s.tenantRepo.List(ctx, offset, limit)
 }
 
 func (s *TenantService) Update(ctx context.Context, tenant *domain.Tenant) error {

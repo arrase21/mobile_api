@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/arrase21/mobileapi/internal/domain"
@@ -39,13 +38,13 @@ type UpdateSkinfoldRequest struct {
 func (h *SkinfoldHandler) Create(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 
 	var req CreateSkinfoldRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -60,7 +59,7 @@ func (h *SkinfoldHandler) Create(c *gin.Context) {
 	}
 
 	if err := h.svc.Create(c.Request.Context(), tenantID.(string), skinfold); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -73,18 +72,18 @@ func (h *SkinfoldHandler) Create(c *gin.Context) {
 func (h *SkinfoldHandler) GetByID(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing skinfold id"})
+		respondError(c, http.StatusBadRequest, "missing skinfold id")
 		return
 	}
 
 	skinfold, err := h.svc.GetByID(c.Request.Context(), tenantID.(string), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondError(c, http.StatusNotFound, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"skinfold": skinfold})
@@ -93,27 +92,21 @@ func (h *SkinfoldHandler) GetByID(c *gin.Context) {
 func (h *SkinfoldHandler) ListByAssessment(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	assessmentID := c.Param("assessment_id")
 	if assessmentID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing assessment id"})
+		respondError(c, http.StatusBadRequest, "missing assessment id")
 		return
 	}
 
-	offset := 0
-	limit := 20
-	if o := c.Query("offset"); o != "" {
-		fmt.Sscanf(o, "%d", &offset)
-	}
-	if l := c.Query("limit"); l != "" {
-		fmt.Sscanf(l, "%d", &limit)
-	}
+	offset := parseQueryInt(c.Query("offset"), 0)
+	limit := parseQueryInt(c.Query("limit"), 20)
 
 	skinfolds, err := h.svc.ListByAssessment(c.Request.Context(), tenantID.(string), assessmentID, offset, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -125,18 +118,18 @@ func (h *SkinfoldHandler) ListByAssessment(c *gin.Context) {
 func (h *SkinfoldHandler) Update(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing skinfold id"})
+		respondError(c, http.StatusBadRequest, "missing skinfold id")
 		return
 	}
 
 	var req UpdateSkinfoldRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -151,27 +144,65 @@ func (h *SkinfoldHandler) Update(c *gin.Context) {
 	}
 
 	if err := h.svc.Update(c.Request.Context(), tenantID.(string), skinfold); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "skinfold updated successfully"})
 }
 
-func (h *SkinfoldHandler) Delete(c *gin.Context) {
+func (h *SkinfoldHandler) SoftDelete(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing skinfold id"})
+		respondError(c, http.StatusBadRequest, "missing skinfold id")
+		return
+	}
+
+	if err := h.svc.SoftDelete(c.Request.Context(), tenantID.(string), id); err != nil {
+		respondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "skinfold soft deleted successfully"})
+}
+
+func (h *SkinfoldHandler) Restore(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		respondError(c, http.StatusBadRequest, "missing tenant id")
+		return
+	}
+	id := c.Param("id")
+	if id == "" {
+		respondError(c, http.StatusBadRequest, "missing skinfold id")
+		return
+	}
+
+	if err := h.svc.Restore(c.Request.Context(), tenantID.(string), id); err != nil {
+		respondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "skinfold restored successfully"})
+}
+
+func (h *SkinfoldHandler) Delete(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		respondError(c, http.StatusBadRequest, "missing tenant id")
+		return
+	}
+	id := c.Param("id")
+	if id == "" {
+		respondError(c, http.StatusBadRequest, "missing skinfold id")
 		return
 	}
 
 	if err := h.svc.Delete(c.Request.Context(), tenantID.(string), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "skinfold deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "skinfold deleted permanently"})
 }

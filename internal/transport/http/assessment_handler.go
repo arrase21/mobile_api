@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -38,13 +37,13 @@ type UpdateAssessmentRequest struct {
 func (h *AssessmentHandler) Create(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 
 	var req CreateAssessmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -58,7 +57,7 @@ func (h *AssessmentHandler) Create(c *gin.Context) {
 	}
 
 	if err := h.svc.Create(c.Request.Context(), tenantID.(string), assessment); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -71,18 +70,18 @@ func (h *AssessmentHandler) Create(c *gin.Context) {
 func (h *AssessmentHandler) GetByID(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing assessment id"})
+		respondError(c, http.StatusBadRequest, "missing assessment id")
 		return
 	}
 
 	assessment, err := h.svc.GetByID(c.Request.Context(), tenantID.(string), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondError(c, http.StatusNotFound, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"assessment": assessment})
@@ -91,27 +90,21 @@ func (h *AssessmentHandler) GetByID(c *gin.Context) {
 func (h *AssessmentHandler) ListByUser(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	userID := c.Param("user_id")
 	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing user id"})
+		respondError(c, http.StatusBadRequest, "missing user id")
 		return
 	}
 
-	offset := 0
-	limit := 20
-	if o := c.Query("offset"); o != "" {
-		fmt.Sscanf(o, "%d", &offset)
-	}
-	if l := c.Query("limit"); l != "" {
-		fmt.Sscanf(l, "%d", &limit)
-	}
+	offset := parseQueryInt(c.Query("offset"), 0)
+	limit := parseQueryInt(c.Query("limit"), 20)
 
 	assessments, err := h.svc.ListByUser(c.Request.Context(), tenantID.(string), userID, offset, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -123,22 +116,16 @@ func (h *AssessmentHandler) ListByUser(c *gin.Context) {
 func (h *AssessmentHandler) ListByTenant(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 
-	offset := 0
-	limit := 20
-	if o := c.Query("offset"); o != "" {
-		fmt.Sscanf(o, "%d", &offset)
-	}
-	if l := c.Query("limit"); l != "" {
-		fmt.Sscanf(l, "%d", &limit)
-	}
+	offset := parseQueryInt(c.Query("offset"), 0)
+	limit := parseQueryInt(c.Query("limit"), 20)
 
 	assessments, err := h.svc.ListByTenant(c.Request.Context(), tenantID.(string), offset, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -150,18 +137,18 @@ func (h *AssessmentHandler) ListByTenant(c *gin.Context) {
 func (h *AssessmentHandler) Update(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing assessment id"})
+		respondError(c, http.StatusBadRequest, "missing assessment id")
 		return
 	}
 
 	var req UpdateAssessmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -175,27 +162,65 @@ func (h *AssessmentHandler) Update(c *gin.Context) {
 	}
 
 	if err := h.svc.Update(c.Request.Context(), tenantID.(string), assessment); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "assessment updated successfully"})
 }
 
-func (h *AssessmentHandler) Delete(c *gin.Context) {
+func (h *AssessmentHandler) SoftDelete(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing assessment id"})
+		respondError(c, http.StatusBadRequest, "missing assessment id")
+		return
+	}
+
+	if err := h.svc.SoftDelete(c.Request.Context(), tenantID.(string), id); err != nil {
+		respondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "assessment soft deleted successfully"})
+}
+
+func (h *AssessmentHandler) Restore(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		respondError(c, http.StatusBadRequest, "missing tenant id")
+		return
+	}
+	id := c.Param("id")
+	if id == "" {
+		respondError(c, http.StatusBadRequest, "missing assessment id")
+		return
+	}
+
+	if err := h.svc.Restore(c.Request.Context(), tenantID.(string), id); err != nil {
+		respondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "assessment restored successfully"})
+}
+
+func (h *AssessmentHandler) Delete(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		respondError(c, http.StatusBadRequest, "missing tenant id")
+		return
+	}
+	id := c.Param("id")
+	if id == "" {
+		respondError(c, http.StatusBadRequest, "missing assessment id")
 		return
 	}
 
 	if err := h.svc.Delete(c.Request.Context(), tenantID.(string), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "assessment deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "assessment deleted permanently"})
 }

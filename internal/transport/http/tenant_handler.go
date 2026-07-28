@@ -39,7 +39,7 @@ type UpdateTenantRequest struct {
 func (h *TenantHandler) Create(c *gin.Context) {
 	var req CreateTenantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -54,7 +54,7 @@ func (h *TenantHandler) Create(c *gin.Context) {
 	}
 
 	if err := h.svc.Create(c.Request.Context(), tenant); err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		respondError(c, http.StatusConflict, err.Error())
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{
@@ -66,21 +66,23 @@ func (h *TenantHandler) Create(c *gin.Context) {
 func (h *TenantHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	tenant, err := h.svc.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondError(c, http.StatusNotFound, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"tenant": tenant})
 }
 
 func (h *TenantHandler) List(c *gin.Context) {
-	tenants, err := h.svc.List(c.Request.Context())
+	offset := parseQueryInt(c.Query("offset"), 0)
+	limit := parseQueryInt(c.Query("limit"), 20)
+	tenants, err := h.svc.List(c.Request.Context(), offset, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -92,12 +94,12 @@ func (h *TenantHandler) List(c *gin.Context) {
 func (h *TenantHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	var req UpdateTenantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -116,7 +118,7 @@ func (h *TenantHandler) Update(c *gin.Context) {
 	}
 
 	if err := h.svc.Update(c.Request.Context(), tenant); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "tenant updated successfully"})
@@ -125,11 +127,11 @@ func (h *TenantHandler) Update(c *gin.Context) {
 func (h *TenantHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	if err := h.svc.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "tenant deleted successfully"})

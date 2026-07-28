@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -43,7 +42,7 @@ type UpdateUserRequest struct {
 func (h *UserHandler) Create(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 
@@ -51,7 +50,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 
 	var req CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -75,11 +74,11 @@ func (h *UserHandler) Create(c *gin.Context) {
 	if err := h.svc.CreateUser(c.Request.Context(), user, creatorIDStr); err != nil {
 		switch err {
 		case domain.ErrUserAlreadyExists:
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			respondError(c, http.StatusConflict, err.Error())
 		case domain.ErrTenantUserLimitReached:
-			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			respondError(c, http.StatusForbidden, err.Error())
 		default:
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondError(c, http.StatusBadRequest, err.Error())
 		}
 		return
 	}
@@ -89,22 +88,23 @@ func (h *UserHandler) Create(c *gin.Context) {
 		"user":    user,
 	})
 }
+
 func (h *UserHandler) GetByDni(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant id not found"})
+		respondError(c, http.StatusBadRequest, "tenant id not found")
 		return
 	}
 
 	dni := c.Param("dni")
 	if dni == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing dni"})
+		respondError(c, http.StatusBadRequest, "missing dni")
 		return
 	}
 
 	user, err := h.svc.GetByDni(c.Request.Context(), tenantID.(string), dni)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondError(c, http.StatusNotFound, err.Error())
 		return
 	}
 
@@ -114,21 +114,15 @@ func (h *UserHandler) GetByDni(c *gin.Context) {
 func (h *UserHandler) List(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
-	offset := 0
-	limit := 20
-	if o := c.Query("offset"); o != "" {
-		fmt.Sscanf(o, "%d", &offset)
-	}
-	if l := c.Query("limit"); l != "" {
-		fmt.Sscanf(l, "%d", &limit)
-	}
+	offset := parseQueryInt(c.Query("offset"), 0)
+	limit := parseQueryInt(c.Query("limit"), 20)
 
 	users, err := h.svc.List(c.Request.Context(), tenantID.(string), offset, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -140,18 +134,18 @@ func (h *UserHandler) List(c *gin.Context) {
 func (h *UserHandler) Update(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 
 	userID := c.Param("user")
 	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing user id"})
+		respondError(c, http.StatusBadRequest, "missing user id")
 		return
 	}
 	var req UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		respondError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
@@ -168,7 +162,12 @@ func (h *UserHandler) Update(c *gin.Context) {
 		TenantID:  tenantID.(string),
 	}
 	if err := h.svc.Update(c.Request.Context(), tenantID.(string), user); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		switch err {
+		case domain.ErrTenantUserLimitReached:
+			respondError(c, http.StatusForbidden, err.Error())
+		default:
+			respondError(c, http.StatusInternalServerError, err.Error())
+		}
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "user updated successfully"})
@@ -177,16 +176,16 @@ func (h *UserHandler) Update(c *gin.Context) {
 func (h *UserHandler) SoftDelete(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	userID := c.Param("user")
 	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing user id"})
+		respondError(c, http.StatusBadRequest, "missing user id")
 		return
 	}
 	if err := h.svc.SoftDelete(c.Request.Context(), tenantID.(string), userID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "user softdeleted"})
@@ -195,16 +194,16 @@ func (h *UserHandler) SoftDelete(c *gin.Context) {
 func (h *UserHandler) Restore(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	userID := c.Param("user")
 	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing user id"})
+		respondError(c, http.StatusBadRequest, "missing user id")
 		return
 	}
 	if err := h.svc.Restore(c.Request.Context(), tenantID.(string), userID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "user restored"})
@@ -213,12 +212,14 @@ func (h *UserHandler) Restore(c *gin.Context) {
 func (h *UserHandler) ListDeleted(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
-	users, err := h.svc.ListDeleted(c.Request.Context(), tenantID.(string))
+	offset := parseQueryInt(c.Query("offset"), 0)
+	limit := parseQueryInt(c.Query("limit"), 20)
+	users, err := h.svc.ListDeleted(c.Request.Context(), tenantID.(string), offset, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -230,16 +231,16 @@ func (h *UserHandler) ListDeleted(c *gin.Context) {
 func (h *UserHandler) Delete(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing tenant id"})
+		respondError(c, http.StatusBadRequest, "missing tenant id")
 		return
 	}
 	userID := c.Param("user")
 	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing user id"})
+		respondError(c, http.StatusBadRequest, "missing user id")
 		return
 	}
 	if err := h.svc.Delete(c.Request.Context(), tenantID.(string), userID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "user deleted permanently"})

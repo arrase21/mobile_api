@@ -72,6 +72,20 @@ func (s *AssessmentService) Update(ctx context.Context, tenantID string, assessm
 	return s.assessmentRepo.Update(ctx, tenantID, assessment)
 }
 
+func (s *AssessmentService) SoftDelete(ctx context.Context, tenantID, id string) error {
+	if id == "" {
+		return errors.New("assessment id is empty")
+	}
+	return s.assessmentRepo.SoftDelete(ctx, tenantID, id)
+}
+
+func (s *AssessmentService) Restore(ctx context.Context, tenantID, id string) error {
+	if id == "" {
+		return errors.New("assessment id is empty")
+	}
+	return s.assessmentRepo.Restore(ctx, tenantID, id)
+}
+
 func (s *AssessmentService) Delete(ctx context.Context, tenantID, id string) error {
 	if id == "" {
 		return errors.New("assessment id is empty")

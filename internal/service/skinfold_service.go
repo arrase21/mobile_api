@@ -62,6 +62,20 @@ func (s *SkinfoldService) Update(ctx context.Context, tenantID string, skinfold 
 	return s.skinfoldRepo.Update(ctx, tenantID, skinfold)
 }
 
+func (s *SkinfoldService) SoftDelete(ctx context.Context, tenantID, id string) error {
+	if id == "" {
+		return errors.New("skinfold id is empty")
+	}
+	return s.skinfoldRepo.SoftDelete(ctx, tenantID, id)
+}
+
+func (s *SkinfoldService) Restore(ctx context.Context, tenantID, id string) error {
+	if id == "" {
+		return errors.New("skinfold id is empty")
+	}
+	return s.skinfoldRepo.Restore(ctx, tenantID, id)
+}
+
 func (s *SkinfoldService) Delete(ctx context.Context, tenantID, id string) error {
 	if id == "" {
 		return errors.New("skinfold id is empty")

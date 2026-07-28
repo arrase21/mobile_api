@@ -1,0 +1,29 @@
+{"time":"2026-07-28T13:14:41.868638169-05:00","level":"INFO","msg":"running with Firestore emulator"}
+{"time":"2026-07-28T13:14:41.869221241-05:00","level":"INFO","msg":"Firebase Auth: using emulator","host":"localhost:9099","project":"demo-no-project"}
+{"time":"2026-07-28T13:14:41.87119285-05:00","level":"INFO","msg":"server starting","addr":":8000"}
+{"time":"2026-07-28T13:15:25.038200677-05:00","level":"INFO","msg":"shutting down server"}
+{"time":"2026-07-28T13:15:25.038398759-05:00","level":"INFO","msg":"server stopped gracefully"}
+{"time":"2026-07-28T13:15:38.962357425-05:00","level":"INFO","msg":"running with Firestore emulator"}
+{"time":"2026-07-28T13:15:38.963157975-05:00","level":"INFO","msg":"Firebase Auth: using emulator","host":"localhost:9099","project":"demo-no-project"}
+{"time":"2026-07-28T13:15:38.964374387-05:00","level":"INFO","msg":"server starting","addr":":8000"}
+{"time":"2026-07-28T13:15:39.534999859-05:00","level":"WARN","msg":"request","method":"GET","path":"/","query":"","status":404,"latency":"7.637µs","client_ip":"::1","user_agent":"curl/8.21.0","body_size":-1}
+{"time":"2026-07-28T13:15:39.541800653-05:00","level":"INFO","msg":"request","method":"GET","path":"/health","query":"","status":200,"latency":"74.231µs","client_ip":"::1","user_agent":"curl/8.21.0","body_size":33}
+{"time":"2026-07-28T13:15:39.54797976-05:00","level":"WARN","msg":"request","method":"POST","path":"/api/v1/users","query":"","status":401,"latency":"30.891µs","client_ip":"::1","user_agent":"curl/8.21.0","body_size":40}
+{"time":"2026-07-28T13:15:39.554677721-05:00","level":"WARN","msg":"request","method":"POST","path":"/api/v1/users","query":"","status":401,"latency":"213.296µs","client_ip":"::1","user_agent":"curl/8.21.0","body_size":25}
+{"time":"2026-07-28T13:15:39.560876808-05:00","level":"WARN","msg":"request","method":"GET","path":"/api/v1/roles","query":"","status":401,"latency":"46.151µs","client_ip":"::1","user_agent":"curl/8.21.0","body_size":40}
+{"time":"2026-07-28T13:16:02.10525809-05:00","level":"INFO","msg":"running with Firestore emulator"}
+{"time":"2026-07-28T13:16:02.106757727-05:00","level":"INFO","msg":"Firebase Auth: using emulator","host":"localhost:9099","project":"demo-no-project"}
+{"time":"2026-07-28T13:16:02.110166287-05:00","level":"INFO","msg":"server starting","addr":":8000"}
+{"time":"2026-07-28T13:16:02.110519654-05:00","level":"ERROR","msg":"server failed","error":"listen tcp :8000: bind: address already in use"}
+{"time":"2026-07-28T13:16:09.124222072-05:00","level":"INFO","msg":"running with Firestore emulator"}
+{"time":"2026-07-28T13:16:09.124802292-05:00","level":"INFO","msg":"Firebase Auth: using emulator","host":"localhost:9099","project":"demo-no-project"}
+{"time":"2026-07-28T13:16:09.132305251-05:00","level":"INFO","msg":"server starting","addr":":8000"}
+{"time":"2026-07-28T13:16:09.132631185-05:00","level":"ERROR","msg":"server failed","error":"listen tcp :8000: bind: address already in use"}
+{"time":"2026-07-28T13:17:38.349958465-05:00","level":"INFO","msg":"running with Firestore emulator"}
+{"time":"2026-07-28T13:17:38.350433409-05:00","level":"INFO","msg":"Firebase Auth: using emulator","host":"localhost:9099","project":"demo-no-project"}
+{"time":"2026-07-28T13:17:38.351831647-05:00","level":"INFO","msg":"server starting","addr":":8000"}
+{"time":"2026-07-28T13:17:38.930857699-05:00","level":"WARN","msg":"request","method":"GET","path":"/","query":"","status":404,"latency":"9.904µs","client_ip":"::1","user_agent":"curl/8.21.0","body_size":-1}
+{"time":"2026-07-28T13:17:38.938165921-05:00","level":"INFO","msg":"request","method":"GET","path":"/health","query":"","status":200,"latency":"57.21µs","client_ip":"::1","user_agent":"curl/8.21.0","body_size":33}
+{"time":"2026-07-28T13:17:38.944466282-05:00","level":"WARN","msg":"request","method":"POST","path":"/api/v1/users","query":"","status":401,"latency":"33.459µs","client_ip":"::1","user_agent":"curl/8.21.0","body_size":40}
+{"time":"2026-07-28T13:17:38.95135267-05:00","level":"WARN","msg":"request","method":"POST","path":"/api/v1/users","query":"","status":401,"latency":"43.687µs","client_ip":"::1","user_agent":"curl/8.21.0","body_size":25}
+{"time":"2026-07-28T13:17:38.957930913-05:00","level":"WARN","msg":"request","method":"GET","path":"/api/v1/roles","query":"","status":401,"latency":"53.419µs","client_ip":"::1","user_agent":"curl/8.21.0","body_size":40}

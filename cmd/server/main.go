@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,14 +10,25 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
+	"github.com/arrase21/mobileapi/internal/logger"
 	"github.com/arrase21/mobileapi/internal/repository"
 	"github.com/arrase21/mobileapi/internal/service"
 	transporthttp "github.com/arrase21/mobileapi/internal/transport/http"
 )
 
 func main() {
+	logLevel := os.Getenv("LOG_LEVEL")
+	if logLevel == "" {
+		logLevel = "info"
+	}
+	logFile := os.Getenv("LOG_FILE")
+	if logFile == "" {
+		logFile = "logs/app.log"
+	}
+	logger.Init(logLevel, logFile)
+
 	if os.Getenv("FIRESTORE_EMULATOR_HOST") != "" {
-		log.Println("🔥 Running with Firestore emulator")
+		slog.Info("running with Firestore emulator")
 	} else {
 		if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") == "" {
 			os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "serviceAccountKey.json")
@@ -29,13 +40,15 @@ func main() {
 		if os.Getenv("FIRESTORE_EMULATOR_HOST") != "" {
 			projectID = "demo-no-project"
 		} else {
-			log.Fatal("GCP_PROJECT environment variable is required")
+			slog.Error("GCP_PROJECT environment variable is required")
+			os.Exit(1)
 		}
 	}
 
 	client, err := firestore.NewClient(context.Background(), projectID)
 	if err != nil {
-		log.Fatalf("failed to create firestore client: %v", err)
+		slog.Error("failed to create firestore client", "error", err)
+		os.Exit(1)
 	}
 	defer client.Close()
 
@@ -78,9 +91,10 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("🚀 Server running on %s", addr)
+		slog.Info("server starting", "addr", addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("server failed: %v", err)
+			slog.Error("server failed", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -88,13 +102,14 @@ func main() {
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	<-quit
 
-	log.Println("⏳ Shutting down server...")
+	slog.Info("shutting down server")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("server forced to shutdown: %v", err)
+		slog.Error("server forced to shutdown", "error", err)
+		os.Exit(1)
 	}
 
-	log.Println("✨ Server stopped gracefully")
+	slog.Info("server stopped gracefully")
 }

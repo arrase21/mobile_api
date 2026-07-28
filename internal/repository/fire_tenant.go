@@ -78,9 +78,10 @@ func (r *FireTenantRepo) GetByName(ctx context.Context, name string) (*domain.Te
 	return &tenant, nil
 }
 
-func (r *FireTenantRepo) List(ctx context.Context) ([]*domain.Tenant, error) {
+func (r *FireTenantRepo) List(ctx context.Context, offset, limit int) ([]*domain.Tenant, error) {
 	iter := r.client.Collection("tenants").
 		OrderBy("created_at", firestore.Asc).
+		Offset(offset).Limit(limit).
 		Documents(ctx)
 	defer iter.Stop()
 

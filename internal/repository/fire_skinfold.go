@@ -103,6 +103,45 @@ func (r *FireSkinfoldRepo) Update(ctx context.Context, tenantID string, skinfold
 	return nil
 }
 
+func (r *FireSkinfoldRepo) SoftDelete(ctx context.Context, tenantID, id string) error {
+	if tenantID == "" || id == "" {
+		return fmt.Errorf("tenantID and id cannot be empty")
+	}
+	ref := r.client.Collection("tenants").Doc(tenantID).Collection("skinfolds").Doc(id)
+	now := time.Now().UTC()
+	_, err := ref.Update(ctx, []firestore.Update{
+		{Path: "is_deleted", Value: true},
+		{Path: "deleted_at", Value: now},
+		{Path: "updated_at", Value: now},
+	})
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return domain.ErrSkinfoldNotFound
+		}
+		return err
+	}
+	return nil
+}
+
+func (r *FireSkinfoldRepo) Restore(ctx context.Context, tenantID, id string) error {
+	if tenantID == "" || id == "" {
+		return fmt.Errorf("tenantID and id cannot be empty")
+	}
+	ref := r.client.Collection("tenants").Doc(tenantID).Collection("skinfolds").Doc(id)
+	_, err := ref.Update(ctx, []firestore.Update{
+		{Path: "is_deleted", Value: false},
+		{Path: "deleted_at", Value: firestore.Delete},
+		{Path: "updated_at", Value: time.Now().UTC()},
+	})
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return domain.ErrSkinfoldNotFound
+		}
+		return err
+	}
+	return nil
+}
+
 func (r *FireSkinfoldRepo) Delete(ctx context.Context, tenantID, skinfoldID string) error {
 	if tenantID == "" || skinfoldID == "" {
 		return fmt.Errorf("tenantID and skinfoldID cannot be empty")

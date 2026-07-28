@@ -35,8 +35,14 @@ func (s *PermissionActionService) GetByID(ctx context.Context, tenantID, id stri
 	return s.actionRepo.GetByID(ctx, tenantID, id)
 }
 
-func (s *PermissionActionService) ListByTenant(ctx context.Context, tenantID string) ([]*domain.PermissionAction, error) {
-	return s.actionRepo.ListByTenant(ctx, tenantID)
+func (s *PermissionActionService) ListByTenant(ctx context.Context, tenantID string, offset, limit int) ([]*domain.PermissionAction, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return s.actionRepo.ListByTenant(ctx, tenantID, offset, limit)
 }
 
 func (s *PermissionActionService) Update(ctx context.Context, tenantID string, action *domain.PermissionAction) error {

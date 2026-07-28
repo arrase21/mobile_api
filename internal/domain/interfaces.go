@@ -16,7 +16,6 @@ var (
 	ErrAssessmentNotFound       = errors.New("assessment not found")
 	ErrPermissionActionNotFound = errors.New("permission action not found")
 	ErrSkinfoldNotFound         = errors.New("skinfold not found")
-	ErrVolumetryNotFound        = errors.New("volumetry not found")
 	ErrTenantUserLimitReached   = errors.New("tenant user limit reached")
 )
 
@@ -24,7 +23,7 @@ type TenantRepo interface {
 	Create(ctx context.Context, tenant *Tenant) error
 	GetByID(ctx context.Context, tenantID string) (*Tenant, error)
 	GetByName(ctx context.Context, name string) (*Tenant, error)
-	List(ctx context.Context) ([]*Tenant, error)
+	List(ctx context.Context, offset, limit int) ([]*Tenant, error)
 	Update(ctx context.Context, tenant *Tenant) error
 	Delete(ctx context.Context, tenantID string) error
 }
@@ -32,7 +31,7 @@ type PermissionRepo interface {
 	Create(ctx context.Context, tenantID string, permission *Permission) error
 	GetByID(ctx context.Context, tenantID, id string) (*Permission, error)
 	GetByName(ctx context.Context, tenantID, name string) (*Permission, error)
-	ListByTenant(ctx context.Context, tenantID string) ([]*Permission, error)
+	ListByTenant(ctx context.Context, tenantID string, offset, limit int) ([]*Permission, error)
 	Update(ctx context.Context, tenantID string, permission *Permission) error
 	SoftDelete(ctx context.Context, tenantID, id string) error
 	Restore(ctx context.Context, tenantID, id string) error
@@ -41,7 +40,7 @@ type PermissionRepo interface {
 type PermissionActionRepo interface {
 	Create(ctx context.Context, tenantID string, action *PermissionAction) error
 	GetByID(ctx context.Context, tenantID, id string) (*PermissionAction, error)
-	ListByTenant(ctx context.Context, tenantID string) ([]*PermissionAction, error)
+	ListByTenant(ctx context.Context, tenantID string, offset, limit int) ([]*PermissionAction, error)
 	Update(ctx context.Context, tenantID string, action *PermissionAction) error
 	SoftDelete(ctx context.Context, tenantID, id string) error
 	Restore(ctx context.Context, tenantID, id string) error
@@ -68,7 +67,7 @@ type UserRepo interface {
 	SoftDelete(ctx context.Context, tenantID, userID string) error
 	Delete(ctx context.Context, tenantID, userID string) error
 	Restore(ctx context.Context, tenantID, userID string) error
-	ListDeleted(ctx context.Context, tenantID string) ([]*User, error)
+	ListDeleted(ctx context.Context, tenantID string, offset, limit int) ([]*User, error)
 	CountByTenant(ctx context.Context, tenantID string) (int, error)
 }
 
@@ -79,6 +78,8 @@ type AssessmentRepo interface {
 	ListByTenant(ctx context.Context, tenantID string, offset, limit int) ([]*Assessment, error)
 	Update(ctx context.Context, tenantID string, assessment *Assessment) error
 	Delete(ctx context.Context, tenantID, assessmentID string) error
+	SoftDelete(ctx context.Context, tenantID, id string) error
+	Restore(ctx context.Context, tenantID, id string) error
 }
 
 type SkinfoldRepo interface {
@@ -87,4 +88,6 @@ type SkinfoldRepo interface {
 	ListByAssessment(ctx context.Context, tenantID, assessmentID string, offset, limit int) ([]*Skinfold, error)
 	Update(ctx context.Context, tenantID string, skinfold *Skinfold) error
 	Delete(ctx context.Context, tenantID, skinfoldID string) error
+	SoftDelete(ctx context.Context, tenantID, id string) error
+	Restore(ctx context.Context, tenantID, id string) error
 }

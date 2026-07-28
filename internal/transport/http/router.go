@@ -20,6 +20,8 @@ func NewRouter(
 ) *gin.Engine {
 	r := gin.Default()
 	r.Use(CORSMiddleware())
+	r.Use(LoggingMiddleware())
+	r.Use(NewIPRateLimiter(1, 60).Middleware())
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -31,13 +33,14 @@ func NewRouter(
 	fbAuth := NewFirebaseAuth(projectID)
 
 	tenants := r.Group("/api/v1/tenants")
+	tenants.Use(fbAuth.Middleware())
 	{
 		tenantHandler := NewTenantHandler(tenantSvc)
-		tenants.POST("", tenantHandler.Create)
-		tenants.GET("", tenantHandler.List)
-		tenants.GET("/:id", tenantHandler.GetByID)
-		tenants.PUT("/:id", tenantHandler.Update)
-		tenants.DELETE("/:id", tenantHandler.Delete)
+		tenants.POST("", SuperAdminMiddleware(userRepo), tenantHandler.Create)
+		tenants.GET("", SuperAdminMiddleware(userRepo), tenantHandler.List)
+		tenants.GET("/:id", SuperAdminMiddleware(userRepo), tenantHandler.GetByID)
+		tenants.PUT("/:id", SuperAdminMiddleware(userRepo), tenantHandler.Update)
+		tenants.DELETE("/:id", SuperAdminMiddleware(userRepo), tenantHandler.Delete)
 	}
 
 	v1 := r.Group("/api/v1")
@@ -47,9 +50,9 @@ func NewRouter(
 		{
 			userHandler := NewUserHandler(userSvc)
 			usrs.POST("", RequirePermission(userRepo, roleRepo, "user.create"), userHandler.Create)
-			usrs.GET("", userHandler.List)
+			usrs.GET("", RequirePermission(userRepo, roleRepo, "user.read"), userHandler.List)
 			usrs.GET("/deleted", RequirePermission(userRepo, roleRepo, "user.read"), userHandler.ListDeleted)
-			usrs.GET("/:dni", userHandler.GetByDni)
+			usrs.GET("/:dni", RequirePermission(userRepo, roleRepo, "user.read"), userHandler.GetByDni)
 			usrs.PUT("/:user", RequirePermission(userRepo, roleRepo, "user.update"), userHandler.Update)
 			usrs.DELETE("/:user", RequirePermission(userRepo, roleRepo, "user.delete"), userHandler.SoftDelete)
 			usrs.PATCH("/:user/restore", RequirePermission(userRepo, roleRepo, "user.restore"), userHandler.Restore)
@@ -61,8 +64,8 @@ func NewRouter(
 		{
 			roleHandler := NewRoleHandler(roleSvc)
 			roles.POST("", RequirePermission(userRepo, roleRepo, "role.create"), roleHandler.CreateRole)
-			roles.GET("", roleHandler.List)
-			roles.GET("/:id", roleHandler.GetByID)
+			roles.GET("", RequirePermission(userRepo, roleRepo, "role.read"), roleHandler.List)
+			roles.GET("/:id", RequirePermission(userRepo, roleRepo, "role.read"), roleHandler.GetByID)
 			roles.PUT("/:id", RequirePermission(userRepo, roleRepo, "role.update"), roleHandler.Update)
 			roles.DELETE("/:id", RequirePermission(userRepo, roleRepo, "role.delete"), roleHandler.SoftDelete)
 			roles.PATCH("/:id/restore", RequirePermission(userRepo, roleRepo, "role.restore"), roleHandler.Restore)
@@ -77,7 +80,9 @@ func NewRouter(
 			assessments.GET("/user/:user_id", RequirePermission(userRepo, roleRepo, "assessment.read"), assessmentHandler.ListByUser)
 			assessments.GET("/:id", RequirePermission(userRepo, roleRepo, "assessment.read"), assessmentHandler.GetByID)
 			assessments.PUT("/:id", RequirePermission(userRepo, roleRepo, "assessment.update"), assessmentHandler.Update)
-			assessments.DELETE("/:id", RequirePermission(userRepo, roleRepo, "assessment.delete"), assessmentHandler.Delete)
+			assessments.DELETE("/:id", RequirePermission(userRepo, roleRepo, "assessment.delete"), assessmentHandler.SoftDelete)
+			assessments.PATCH("/:id/restore", RequirePermission(userRepo, roleRepo, "assessment.update"), assessmentHandler.Restore)
+			assessments.DELETE("/:id/permanent", RequirePermission(userRepo, roleRepo, "assessment.delete"), assessmentHandler.Delete)
 		}
 
 		skinfolds := v1.Group("/skinfolds")
@@ -88,7 +93,9 @@ func NewRouter(
 			skinfolds.GET("/assessment/:assessment_id", RequirePermission(userRepo, roleRepo, "assessment.read"), skinfoldHandler.ListByAssessment)
 			skinfolds.GET("/:id", RequirePermission(userRepo, roleRepo, "assessment.read"), skinfoldHandler.GetByID)
 			skinfolds.PUT("/:id", RequirePermission(userRepo, roleRepo, "assessment.update"), skinfoldHandler.Update)
-			skinfolds.DELETE("/:id", RequirePermission(userRepo, roleRepo, "assessment.delete"), skinfoldHandler.Delete)
+			skinfolds.DELETE("/:id", RequirePermission(userRepo, roleRepo, "assessment.delete"), skinfoldHandler.SoftDelete)
+			skinfolds.PATCH("/:id/restore", RequirePermission(userRepo, roleRepo, "assessment.update"), skinfoldHandler.Restore)
+			skinfolds.DELETE("/:id/permanent", RequirePermission(userRepo, roleRepo, "assessment.delete"), skinfoldHandler.Delete)
 		}
 
 		permissions := v1.Group("/permissions")

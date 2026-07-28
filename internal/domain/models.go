@@ -78,6 +78,7 @@ type Assessment struct {
 	Weight    float64   `firestore:"weight" json:"weight"`
 	Humerus   float64   `firestore:"humerus" json:"humerus"`
 	Femur     float64   `firestore:"femur" json:"femur"`
+	IsDeleted bool      `firestore:"is_deleted" json:"is_deleted"`
 	DeletedAt time.Time `firestore:"deleted_at" json:"deleted_at"`
 	CreatedAt time.Time `firestore:"created_at" json:"created_at"`
 	UpdatedAt time.Time `firestore:"updated_at" json:"updated_at"`

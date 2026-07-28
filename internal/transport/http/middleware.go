@@ -2,7 +2,7 @@ package http
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"slices"
@@ -36,7 +36,7 @@ func NewFirebaseAuth(projectID string) *FirebaseAuth {
 	}
 
 	if emulatorHost != "" {
-		log.Printf("🔥 Firebase Auth: using emulator at %s (project: %s)", emulatorHost, projectID)
+		slog.Info("Firebase Auth: using emulator", "host", emulatorHost, "project", projectID)
 	} else {
 		credPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
 		if credPath == "" {
@@ -51,12 +51,14 @@ func NewFirebaseAuth(projectID string) *FirebaseAuth {
 
 	app, err := firebase.NewApp(context.Background(), config, opts...)
 	if err != nil {
-		log.Fatalf("error initializing firebase app: %v", err)
+		slog.Error("error initializing firebase app", "error", err)
+		os.Exit(1)
 	}
 
 	authClient, err := app.Auth(context.Background())
 	if err != nil {
-		log.Fatalf("error getting firebase auth client: %v", err)
+		slog.Error("error getting firebase auth client", "error", err)
+		os.Exit(1)
 	}
 
 	return &FirebaseAuth{authClient: authClient}
@@ -85,6 +87,46 @@ func (m *FirebaseAuth) Middleware() gin.HandlerFunc {
 			c.Set("tenant_id", tenant)
 		}
 
+		c.Next()
+	}
+}
+
+func SuperAdminMiddleware(userRepo domain.UserRepo) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		firebaseUID, exists := c.Get("firebase_uid")
+		if !exists {
+			respondError(c, http.StatusUnauthorized, "missing firebase uid")
+			c.Abort()
+			return
+		}
+
+		tenantID := c.GetHeader("X-Tenant-ID")
+		if tenantID == "" {
+			if tid, ok := c.Get("tenant_id"); ok {
+				tenantID = tid.(string)
+			}
+		}
+		if tenantID == "" {
+			respondError(c, http.StatusBadRequest, "missing tenant id")
+			c.Abort()
+			return
+		}
+
+		user, err := userRepo.GetByFirebaseUID(c.Request.Context(), tenantID, firebaseUID.(string))
+		if err != nil {
+			respondError(c, http.StatusForbidden, "user not found")
+			c.Abort()
+			return
+		}
+
+		if !user.IsSuperAdmin {
+			respondError(c, http.StatusForbidden, "super admin access required")
+			c.Abort()
+			return
+		}
+
+		c.Set("tenant_id", tenantID)
+		c.Set("user_id", user.ID)
 		c.Next()
 	}
 }

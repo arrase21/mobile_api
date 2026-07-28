@@ -2,15 +2,17 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"os"
 
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
+	"github.com/arrase21/mobileapi/internal/logger"
 )
 
 func main() {
+	logger.Init("info", "")
 	ctx := context.Background()
 
 	projectID := "demo-no-project"
@@ -24,17 +26,20 @@ func main() {
 
 	app, err := firebase.NewApp(ctx, config)
 	if err != nil {
-		log.Fatalf("error initializing app: %v", err)
+		slog.Error("error initializing app", "error", err)
+		os.Exit(1)
 	}
 
 	authClient, err := app.Auth(ctx)
 	if err != nil {
-		log.Fatalf("error getting auth client: %v", err)
+		slog.Error("error getting auth client", "error", err)
+		os.Exit(1)
 	}
 
 	firestoreClient, err := firestore.NewClient(ctx, projectID)
 	if err != nil {
-		log.Fatalf("error creating firestore client: %v", err)
+		slog.Error("error creating firestore client", "error", err)
+		os.Exit(1)
 	}
 	defer firestoreClient.Close()
 
@@ -42,7 +47,7 @@ func main() {
 	email := "admin@test.com"
 	password := "test1234"
 
-	log.Println("1. Creando tenant en Firestore...")
+	slog.Info("creating tenant in Firestore", "step", 1)
 	_, err = firestoreClient.Collection("tenants").Doc(tenantID).Set(ctx, map[string]interface{}{
 		"id":         tenantID,
 		"name":       "Mi Empresa",
@@ -53,11 +58,12 @@ func main() {
 		"updated_at": firestore.ServerTimestamp,
 	}, firestore.MergeAll)
 	if err != nil {
-		log.Fatalf("error creating tenant: %v", err)
+		slog.Error("error creating tenant", "error", err)
+		os.Exit(1)
 	}
-	log.Printf("   Tenant '%s' creado\n", tenantID)
+	slog.Info("tenant created", "tenant_id", tenantID)
 
-	log.Println("2. Creando rol admin...")
+	slog.Info("creating admin role", "step", 2)
 	permissions := []string{"user.create", "user.read", "user.update", "user.delete", "user.restore"}
 	roleID := "role-admin"
 	_, err = firestoreClient.Collection("tenants").Doc(tenantID).Collection("roles").Doc(roleID).Set(ctx, map[string]interface{}{
@@ -71,11 +77,12 @@ func main() {
 		"updated_at":  firestore.ServerTimestamp,
 	}, firestore.MergeAll)
 	if err != nil {
-		log.Fatalf("error creating role: %v", err)
+		slog.Error("error creating role", "error", err)
+		os.Exit(1)
 	}
-	log.Printf("   Rol '%s' creado con permisos: %v\n", roleID, permissions)
+	slog.Info("role created", "role_id", roleID, "permissions", permissions)
 
-	log.Println("3. Creando usuario en Firebase Auth...")
+	slog.Info("creating Firebase Auth user", "step", 3)
 	params := (&auth.UserToCreate{}).
 		Email(email).
 		Password(password).
@@ -85,29 +92,31 @@ func main() {
 	if err != nil {
 		fbUser, err = authClient.CreateUser(ctx, params)
 		if err != nil {
-			log.Fatalf("error creating firebase user: %v", err)
+			slog.Error("error creating firebase user", "error", err)
+			os.Exit(1)
 		}
-		log.Printf("   Usuario Firebase creado: %s (uid: %s)\n", email, fbUser.UID)
+		slog.Info("firebase user created", "email", email, "uid", fbUser.UID)
 	} else {
-		// Update password in case it changed
 		_, err = authClient.UpdateUser(ctx, fbUser.UID, (&auth.UserToUpdate{}).Password(password))
 		if err != nil {
-			log.Fatalf("error updating firebase user: %v", err)
+			slog.Error("error updating firebase user", "error", err)
+			os.Exit(1)
 		}
-		log.Printf("   Usuario Firebase ya existía: %s (uid: %s), password actualizado\n", email, fbUser.UID)
+		slog.Info("firebase user already exists, password updated", "email", email, "uid", fbUser.UID)
 	}
 
-	log.Println("4. Seteando custom claims...")
+	slog.Info("setting custom claims", "step", 4)
 	err = authClient.SetCustomUserClaims(ctx, fbUser.UID, map[string]interface{}{
 		"tenant_id":      tenantID,
 		"is_super_admin": true,
 	})
 	if err != nil {
-		log.Fatalf("error setting custom claims: %v", err)
+		slog.Error("error setting custom claims", "error", err)
+		os.Exit(1)
 	}
-	log.Println("   Custom claims seteados (tenant_id + is_super_admin)")
+	slog.Info("custom claims set", "claims", []string{"tenant_id", "is_super_admin"})
 
-	log.Println("5. Creando usuario en Firestore...")
+	slog.Info("creating user in Firestore", "step", 5)
 	_, err = firestoreClient.Collection("tenants").Doc(tenantID).Collection("users").Doc(fbUser.UID).Set(ctx, map[string]interface{}{
 		"id":             fbUser.UID,
 		"firebase_uid":   fbUser.UID,
@@ -127,18 +136,13 @@ func main() {
 		"updated_at":     firestore.ServerTimestamp,
 	}, firestore.MergeAll)
 	if err != nil {
-		log.Fatalf("error creating user in firestore: %v", err)
+		slog.Error("error creating user in firestore", "error", err)
+		os.Exit(1)
 	}
-	log.Printf("   Usuario Firestore creado en %s/users/%s\n", tenantID, fbUser.UID)
+	slog.Info("user created in Firestore", "tenant_id", tenantID, "user_id", fbUser.UID)
 
-	log.Println("")
-	log.Println("═══════════════════════════════════════════════════")
-	log.Println("  Seed completado!")
-	log.Println("")
-	log.Println("  Para obtener el token:")
-	log.Printf("  curl -X POST 'http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=dummy' \\\n")
-	log.Println("    -H 'Content-Type: application/json' \\\n")
-	log.Printf("    -d '{\"email\":\"%s\",\"password\":\"%s\",\"returnSecureToken\":true}'", email, password)
-	log.Println("")
-	log.Println("═══════════════════════════════════════════════════")
+	slog.Info("seed completed",
+		"token_url", "http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=dummy",
+		"email", email,
+	)
 }

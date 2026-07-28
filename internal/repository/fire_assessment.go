@@ -26,6 +26,7 @@ func (r *FireAssessmentRepo) Create(ctx context.Context, tenantID string, assess
 	}
 	ref := r.client.Collection("tenants").Doc(tenantID).Collection("assessments").NewDoc()
 	assessment.ID = ref.ID
+	assessment.IsDeleted = false
 	assessment.CreatedAt = time.Now().UTC()
 	assessment.UpdatedAt = time.Now().UTC()
 	_, err := ref.Set(ctx, assessment)
@@ -53,6 +54,7 @@ func (r *FireAssessmentRepo) GetByID(ctx context.Context, tenantID, id string) (
 func (r *FireAssessmentRepo) ListByUser(ctx context.Context, tenantID, userID string, offset, limit int) ([]*domain.Assessment, error) {
 	iter := r.client.Collection("tenants").Doc(tenantID).Collection("assessments").
 		Where("user_id", "==", userID).
+		Where("is_deleted", "==", false).
 		OrderBy("date", firestore.Desc).
 		Offset(offset).Limit(limit).
 		Documents(ctx)
@@ -78,6 +80,7 @@ func (r *FireAssessmentRepo) ListByUser(ctx context.Context, tenantID, userID st
 
 func (r *FireAssessmentRepo) ListByTenant(ctx context.Context, tenantID string, offset, limit int) ([]*domain.Assessment, error) {
 	iter := r.client.Collection("tenants").Doc(tenantID).Collection("assessments").
+		Where("is_deleted", "==", false).
 		OrderBy("date", firestore.Desc).
 		Offset(offset).Limit(limit).
 		Documents(ctx)
@@ -114,6 +117,45 @@ func (r *FireAssessmentRepo) Update(ctx context.Context, tenantID string, assess
 		{Path: "humerus", Value: assessment.Humerus},
 		{Path: "femur", Value: assessment.Femur},
 		{Path: "updated_at", Value: assessment.UpdatedAt},
+	})
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return domain.ErrAssessmentNotFound
+		}
+		return err
+	}
+	return nil
+}
+
+func (r *FireAssessmentRepo) SoftDelete(ctx context.Context, tenantID, id string) error {
+	if tenantID == "" || id == "" {
+		return fmt.Errorf("tenantID and id cannot be empty")
+	}
+	ref := r.client.Collection("tenants").Doc(tenantID).Collection("assessments").Doc(id)
+	now := time.Now().UTC()
+	_, err := ref.Update(ctx, []firestore.Update{
+		{Path: "is_deleted", Value: true},
+		{Path: "deleted_at", Value: now},
+		{Path: "updated_at", Value: now},
+	})
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return domain.ErrAssessmentNotFound
+		}
+		return err
+	}
+	return nil
+}
+
+func (r *FireAssessmentRepo) Restore(ctx context.Context, tenantID, id string) error {
+	if tenantID == "" || id == "" {
+		return fmt.Errorf("tenantID and id cannot be empty")
+	}
+	ref := r.client.Collection("tenants").Doc(tenantID).Collection("assessments").Doc(id)
+	_, err := ref.Update(ctx, []firestore.Update{
+		{Path: "is_deleted", Value: false},
+		{Path: "deleted_at", Value: firestore.Delete},
+		{Path: "updated_at", Value: time.Now().UTC()},
 	})
 	if err != nil {
 		if status.Code(err) == codes.NotFound {

@@ -73,10 +73,11 @@ func (r *FirePermissionRepo) GetByName(ctx context.Context, tenantID, name strin
 	return &permission, nil
 }
 
-func (r *FirePermissionRepo) ListByTenant(ctx context.Context, tenantID string) ([]*domain.Permission, error) {
+func (r *FirePermissionRepo) ListByTenant(ctx context.Context, tenantID string, offset, limit int) ([]*domain.Permission, error) {
 	iter := r.client.Collection("tenants").Doc(tenantID).Collection("permissions").
 		Where("is_deleted", "==", false).
 		OrderBy("created_at", firestore.Asc).
+		Offset(offset).Limit(limit).
 		Documents(ctx)
 	defer iter.Stop()
 

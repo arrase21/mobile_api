@@ -139,13 +139,41 @@ func (r *FireUserRepo) Update(ctx context.Context, tenantID string, user *domain
 	}
 	ref := r.client.Collection("tenants").Doc(tenantID).Collection("users").Doc(user.ID)
 	user.UpdatedAt = time.Now().UTC()
-	_, err := ref.Update(ctx, []firestore.Update{
-		{Path: "email", Value: user.Email},
-		{Path: "first_name", Value: user.FirstName},
-		{Path: "last_name", Value: user.LastName},
-		{Path: "dni", Value: user.Dni},
+	updates := []firestore.Update{
 		{Path: "updated_at", Value: user.UpdatedAt},
-	})
+	}
+
+	if user.Email != "" {
+		updates = append(updates, firestore.Update{Path: "email", Value: user.Email})
+	}
+	if user.FirstName != "" {
+		updates = append(updates, firestore.Update{Path: "first_name", Value: user.FirstName})
+	}
+	if user.LastName != "" {
+		updates = append(updates, firestore.Update{Path: "last_name", Value: user.LastName})
+	}
+	if user.Dni != "" {
+		updates = append(updates, firestore.Update{Path: "dni", Value: user.Dni})
+	}
+	if user.Gender != "" {
+		updates = append(updates, firestore.Update{Path: "gender", Value: user.Gender})
+	}
+	if user.Phone != "" {
+		updates = append(updates, firestore.Update{Path: "phone", Value: user.Phone})
+	}
+	if !user.DateBirth.IsZero() {
+		updates = append(updates, firestore.Update{Path: "date_birth", Value: user.DateBirth})
+	}
+	if user.Nickname != "" {
+		updates = append(updates, firestore.Update{Path: "nickname", Value: user.Nickname})
+	}
+	if user.RoleID != "" {
+		updates = append(updates, firestore.Update{Path: "role_id", Value: user.RoleID})
+	}
+	if user.FirebaseUID != "" {
+		updates = append(updates, firestore.Update{Path: "firebase_uid", Value: user.FirebaseUID})
+	}
+	_, err := ref.Update(ctx, updates)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			return domain.ErrUserNotFound
@@ -195,9 +223,10 @@ func (r *FireUserRepo) Restore(ctx context.Context, tenantID, userID string) err
 	return nil
 }
 
-func (r *FireUserRepo) ListDeleted(ctx context.Context, tenantID string) ([]*domain.User, error) {
+func (r *FireUserRepo) ListDeleted(ctx context.Context, tenantID string, offset, limit int) ([]*domain.User, error) {
 	ref := r.client.Collection("tenants").Doc(tenantID).Collection("users").
 		Where("is_deleted", "==", true).OrderBy("deleted_at", firestore.Desc).
+		Offset(offset).Limit(limit).
 		Documents(ctx)
 
 	defer ref.Stop()
@@ -224,21 +253,18 @@ func (r *FireUserRepo) CountByTenant(ctx context.Context, tenantID string) (int,
 	if tenantID == "" {
 		return 0, fmt.Errorf("tenantID cannot be empty")
 	}
-	iter := r.client.Collection("tenants").Doc(tenantID).Collection("users").
-		Where("is_deleted", "==", false).
-		Documents(ctx)
-	defer iter.Stop()
+	q := r.client.Collection("tenants").Doc(tenantID).Collection("users").
+		Where("is_deleted", "==", false)
+	aggregationQuery := q.NewAggregationQuery().WithCount("all")
 
-	count := 0
-	for {
-		_, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return 0, err
-		}
-		count++
+	results, err := aggregationQuery.Get(ctx)
+	if err != nil {
+		return 0, err
 	}
-	return count, nil
+
+	count, ok := results["all"]
+	if !ok {
+		return 0, fmt.Errorf("count not found in aggregation results")
+	}
+	return int(count.(int64)), nil
 }
