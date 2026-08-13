@@ -1,0 +1,8 @@
+.git
+logs
+seed
+mobile_api
+*.test
+*.out
+serviceAccountKey.json
+.env

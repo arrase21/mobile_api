@@ -5,6 +5,7 @@
 *.so
 *.dylib
 mobile_api
+seed
 
 # Test binary
 *.test

@@ -22,7 +22,7 @@ func main() {
 		logLevel = "info"
 	}
 	logFile := os.Getenv("LOG_FILE")
-	if logFile == "" {
+	if _, ok := os.LookupEnv("LOG_FILE"); !ok {
 		logFile = "logs/app.log"
 	}
 	logger.Init(logLevel, logFile)
@@ -81,7 +81,11 @@ func main() {
 		projectID,
 	)
 
-	addr := ":8000"
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8000"
+	}
+	addr := ":" + port
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      router,
